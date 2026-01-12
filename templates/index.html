@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>숨은 영어 단어 찾기</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 숨은 영어단어 찾기</h1>
+        <form action="/generate" method="POST">
+            <div class="difficulty-section">
+                <label>난이도: <span id="diffVal">5</span></label>
+                <input type="range" name="difficulty" min="1" max="10" value="5" oninput="document.getElementById('diffVal').innerText = this.value">
+            </div>
+
+            <div class="word-grid">
+                {% for i in range(1, 19) %}
+                <div class="input-group">
+                    <span>{{ i }}</span>
+                    <input type="text" name="word_{{ i }}" value="{{ default_words[i-1] }}" required>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="generate-btn">Create & Download PDF</button>
+        </form>
+    </div>
+</body>
+</html>
