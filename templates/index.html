@@ -2,28 +2,75 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>숨은 영어 단어 찾기</title>
+    <title>숨은 단어 찾기 생성기</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        let wordCount = 18;
+
+        function addWord() {
+            wordCount++;
+            const container = document.getElementById('word-grid');
+            const div = document.createElement('div');
+            div.className = 'input-group';
+            div.id = 'group_' + wordCount;
+            div.innerHTML = `<span>${wordCount}</span><input type="text" name="word_${wordCount}" class="word-input" required>`;
+            container.appendChild(div);
+        }
+
+        function removeWord() {
+            if (wordCount > 1) {
+                document.getElementById('group_' + wordCount).remove();
+                wordCount--;
+            }
+        }
+
+        function clearAll() {
+            document.querySelectorAll('.word-input').forEach(input => { input.value = ''; });
+        }
+
+        function setLanguage(lang) {
+            const enWords = {{ en|tojson }};
+            const koWords = {{ ko|tojson }};
+            const target = (lang === 'en') ? enWords : koWords;
+            
+            // 칸 개수 동기화
+            while (wordCount < target.length) addWord();
+            while (wordCount > target.length) removeWord();
+            
+            for(let i = 1; i <= target.length; i++) {
+                document.getElementsByName('word_' + i)[0].value = target[i-1];
+            }
+            document.getElementById('lang_mode').value = lang;
+        }
+    </script>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 숨은 영어단어 찾기</h1>
+        <h1>🔍 숨은 단어 찾기 생성기</h1>
+        <div class="controls">
+            <button type="button" onclick="setLanguage('en')">English Mode</button>
+            <button type="button" onclick="setLanguage('ko')">한국어 모드</button>
+            <button type="button" onclick="addWord()" style="background:#3498db">+ 칸 추가</button>
+            <button type="button" onclick="removeWord()" style="background:#95a5a6">- 칸 삭제</button>
+            <button type="button" onclick="clearAll()" style="background:#e74c3c">전체 초기화</button>
+        </div>
+        
         <form action="/generate" method="POST">
+            <input type="hidden" name="lang" id="lang_mode" value="en">
             <div class="difficulty-section">
-                <label>난이도: <span id="diffVal">5</span></label>
-                <input type="range" name="difficulty" min="1" max="10" value="5" oninput="document.getElementById('diffVal').innerText = this.value">
+                <label>난이도 (1-100): <span id="diffVal">50</span></label>
+                <input type="range" name="difficulty" min="1" max="100" value="50" oninput="document.getElementById('diffVal').innerText = this.value">
             </div>
 
-            <div class="word-grid">
+            <div class="word-grid" id="word-grid">
                 {% for i in range(1, 19) %}
-                <div class="input-group">
+                <div class="input-group" id="group_{{ i }}">
                     <span>{{ i }}</span>
-                    <input type="text" name="word_{{ i }}" value="{{ default_words[i-1] }}" required>
+                    <input type="text" name="word_{{ i }}" class="word-input" value="{{ en[i-1] }}" required>
                 </div>
                 {% endfor %}
             </div>
-
-            <button type="submit" class="generate-btn">Create & Download PDF</button>
+            <button type="submit" class="generate-btn">PDF 생성 및 다운로드</button>
         </form>
     </div>
 </body>
