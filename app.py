@@ -2,7 +2,8 @@ import random
 import string
 import io
 import os
-from flask import Flask, render_template, request, send_file
+import json
+from flask import Flask, render_template, request, send_file, jsonify
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -20,17 +21,24 @@ except Exception as e:
     print(f"Font Load Error: {e}")
     FONT_NAME = 'Helvetica-Bold'
 
+# --- 단어 데이터 로드 ---
+def load_word_data():
+    try:
+        with open('words.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"en": {"job": []}, "ko": {"job": []}}
+
 class WordSearch:
     def __init__(self, size=24, difficulty=50):
         self.size = size
         self.grid = [['' for _ in range(size)] for _ in range(size)]
         self.solution_mask = [[False for _ in range(size)] for _ in range(size)]
         
-        # 난이도 1~100 로직
-        self.directions = [(0, 1), (1, 0)]  # 기본 가로, 세로
-        if difficulty > 25: self.directions.extend([(1, 1), (1, -1)])  # 대각선
-        if difficulty > 50: self.directions.extend([(0, -1), (-1, 0)])  # 역방향 가로/세로
-        if difficulty > 75: self.directions.extend([(-1, -1), (-1, 1)]) # 역방향 대각선
+        self.directions = [(0, 1), (1, 0)]
+        if difficulty > 25: self.directions.extend([(1, 1), (1, -1)])
+        if difficulty > 50: self.directions.extend([(0, -1), (-1, 0)])
+        if difficulty > 75: self.directions.extend([(-1, -1), (-1, 1)])
 
     def place_word(self, word):
         word = word.upper().replace(" ", "")
@@ -98,15 +106,42 @@ def draw_puzzle(c, ws, words, is_answer=False, lang='en'):
 
 @app.route('/')
 def index():
-    en_list = ["DOCTOR", "JUDGE", "CHEF", "TEACHER", "SPORTSMAN", "SINGER", "ACTOR", "FIREFIGHTER", "POLICE", "PROFESSOR", "EMPLOYEE", "SOLDIER", "SCIENTIST", "PRESIDENT", "ANNOUNCER", "ANCHOR", "REPORTER", "ARTIST"]
-    ko_list = ["의사", "판사", "요리사", "선생님", "운동선수", "가수", "배우", "소방관", "경찰관", "교수", "회사원", "군인", "과학자", "대통령", "아나운서", "앵커", "기자", "화가"]
-    return render_template('index.html', en=en_list, ko=ko_list)
+    data = load_word_data()
+    # 초기 접속 시 영문 직업 단어로 18개 표시
+    return render_template('index.html', en=data['en']['job'][:18])
+
+@app.route('/get_words', methods=['GET'])
+def get_words():
+    lang = request.args.get('lang', 'en')
+    category = request.args.get('category', 'job')
+    count = 18 # 무조건 18개로 고정
+    
+    data = load_word_data()
+    
+    if category == 'random':
+        all_combined = []
+        for cat in data.get(lang, {}).values():
+            all_combined.extend(cat)
+        category_list = list(set(all_combined))
+    else:
+        category_list = data.get(lang, {}).get(category, [])
+    
+    if len(category_list) >= count:
+        selected = random.sample(category_list, count)
+    else:
+        selected = category_list
+        
+    return jsonify({"words": selected})
 
 @app.route('/generate', methods=['POST'])
 def generate():
     lang = request.form.get('lang', 'en')
     diff = int(request.form.get('difficulty', 50))
-    words = [request.form.get(k).strip() for k in sorted(request.form.keys()) if k.startswith('word_') and request.form.get(k).strip()]
+    # word_1부터 word_18까지만 가져옴
+    words = []
+    for i in range(1, 19):
+        val = request.form.get(f'word_{i}', '').strip()
+        if val: words.append(val)
     
     ws = WordSearch(size=24, difficulty=diff)
     for w in words: ws.place_word(w)

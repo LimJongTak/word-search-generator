@@ -5,22 +5,19 @@
     <title>숨은 단어 찾기 생성기</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script>
-        let wordCount = 18;
+        const FIXED_COUNT = 18;
 
-        function addWord() {
-            wordCount++;
-            const container = document.getElementById('word-grid');
-            const div = document.createElement('div');
-            div.className = 'input-group';
-            div.id = 'group_' + wordCount;
-            div.innerHTML = `<span>${wordCount}</span><input type="text" name="word_${wordCount}" class="word-input" required>`;
-            container.appendChild(div);
-        }
+        async function fetchAndFillWords() {
+            const lang = document.getElementById('lang_mode').value;
+            const category = document.getElementById('category_select').value;
+            
+            const response = await fetch(`/get_words?lang=${lang}&category=${category}`);
+            const data = await response.json();
+            const words = data.words;
 
-        function removeWord() {
-            if (wordCount > 1) {
-                document.getElementById('group_' + wordCount).remove();
-                wordCount--;
+            for(let i = 1; i <= FIXED_COUNT; i++) {
+                const el = document.getElementsByName('word_' + i)[0];
+                if(el) el.value = words[i-1] || '';
             }
         }
 
@@ -29,29 +26,33 @@
         }
 
         function setLanguage(lang) {
-            const enWords = {{ en|tojson }};
-            const koWords = {{ ko|tojson }};
-            const target = (lang === 'en') ? enWords : koWords;
-            
-            // 칸 개수 동기화
-            while (wordCount < target.length) addWord();
-            while (wordCount > target.length) removeWord();
-            
-            for(let i = 1; i <= target.length; i++) {
-                document.getElementsByName('word_' + i)[0].value = target[i-1];
-            }
             document.getElementById('lang_mode').value = lang;
+            fetchAndFillWords();
         }
     </script>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 숨은 단어 찾기 생성기</h1>
+        <h1>🔍 숨은 단어 찾기 생성기 (고정 18단어)</h1>
+        
         <div class="controls">
+            <select id="category_select" onchange="fetchAndFillWords()" style="padding: 10px; border-radius: 5px; font-size: 16px;">
+                <option value="random">🎲 무작위 (전체)</option>
+                <option value="job">💼 직업 (Jobs)</option>
+                <option value="animal">🦁 동물 (Animals)</option>
+                <option value="fruit">🍎 과일 (Fruits)</option>
+                <option value="vehicle">🚀 탈 것 (Vehicles)</option>
+                <option value="sport">⚽ 운동 (Sports)</option>
+                <option value="country">🗺️ 나라 (Countries)</option>
+                <option value="color">🎨 색깔 (Colors)</option>
+                <option value="nature">🌿 자연 (Nature)</option>
+                <option value="food">🍕 음식 (Food)</option>
+                <option value="school">✏️ 학교 (School)</option>
+            </select>
+            
+            <button type="button" onclick="fetchAndFillWords()" style="background:#f39c12">🔄 단어 섞기</button>
             <button type="button" onclick="setLanguage('en')">English Mode</button>
             <button type="button" onclick="setLanguage('ko')">한국어 모드</button>
-            <button type="button" onclick="addWord()" style="background:#3498db">+ 칸 추가</button>
-            <button type="button" onclick="removeWord()" style="background:#95a5a6">- 칸 삭제</button>
             <button type="button" onclick="clearAll()" style="background:#e74c3c">전체 초기화</button>
         </div>
         
@@ -66,7 +67,7 @@
                 {% for i in range(1, 19) %}
                 <div class="input-group" id="group_{{ i }}">
                     <span>{{ i }}</span>
-                    <input type="text" name="word_{{ i }}" class="word-input" value="{{ en[i-1] }}" required>
+                    <input type="text" name="word_{{ i }}" class="word-input" value="{{ en[i-1] if en[i-1] else '' }}" required>
                 </div>
                 {% endfor %}
             </div>
